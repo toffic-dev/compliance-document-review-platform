@@ -3,7 +3,7 @@ version: "3.9"
 # Assumes this repo is cloned side-by-side with the other track repos:
 #
 #   compliance-review/
-#   ├── compliance-document-review-backend/
+#   ├── compliance-document-review-app/
 #   ├── compliance-document-review-frontend/
 #   ├── compliance-document-review-ai/
 #   ├── compliance-document-review-data-engineering/
@@ -32,7 +32,7 @@ services:
 
   backend:
     build:
-      context: ../compliance-document-review-backend
+      context: ../compliance-document-review-app
     container_name: compliance-backend
     restart: unless-stopped
     env_file:
