@@ -1,0 +1,76 @@
+version: "3.9"
+
+# Assumes this repo is cloned side-by-side with the other track repos:
+#
+#   compliance-review/
+#   ├── compliance-document-review-backend/
+#   ├── compliance-document-review-frontend/
+#   ├── compliance-document-review-ai/
+#   ├── compliance-document-review-data-engineering/
+#   └── compliance-document-review-platform/   <- this repo
+#
+# If your team's repo names differ, update the `context` paths below to match.
+
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    container_name: compliance-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-compliance}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-compliance}
+      POSTGRES_DB: ${POSTGRES_DB:-compliance_review}
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-compliance}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ../compliance-document-review-backend
+    container_name: compliance-backend
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-compliance}:${POSTGRES_PASSWORD:-compliance}@db:5432/${POSTGRES_DB:-compliance_review}
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ../compliance-document-review-frontend
+    container_name: compliance-frontend
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+
+  ai:
+    build:
+      context: ../compliance-document-review-ai
+    container_name: compliance-ai
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-compliance}:${POSTGRES_PASSWORD:-compliance}@db:5432/${POSTGRES_DB:-compliance_review}
+    ports:
+      - "8001:8001"
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  db_data:
