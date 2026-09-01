@@ -18,3 +18,15 @@ jobs:
 
       - name: Validate docker-compose config
         run: docker compose config
+
+      - name: Start the database and wait for it to be healthy
+        run: docker compose up -d --wait db
+
+      - name: Tear down
+        if: always()
+        run: docker compose down -v
+
+      # TODO once other repos exist as siblings:
+      # - Check out backend/frontend/ai repos too (or use a matrix)
+      # - Run ./scripts/seed.sh
+      # - Run each track's test suite (docker compose exec ...)
