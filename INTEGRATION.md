@@ -38,17 +38,34 @@ once finalized.
 
 ## Embedding model / API
 
-**Status: open - owner: AI + Data Engineering**
+**Status: partially confirmed - owner: AI to confirm match**
 
-TODO: confirm which embedding model/API both sides will use so masked-text
-embeddings (Data Engineering) and any AI-side embedding calls stay consistent.
+Data Engineering is using `sentence-transformers`, 384 dimensions, matching
+the `document_chunks.embedding vector(384)` column already set up. Pipeline
+tested end-to-end (extraction -> chunking -> embedding -> insert), 12 rows
+verified.
+
+TODO: AI to confirm their embedding calls use the same model/dimensions, or
+flag a mismatch before more integration work happens on top of this.
 
 ## Retrieval API response shape
 
-**Status: open - owner: Data Engineering**
+**Status: proposed by Data Engineering, open to adjustment**
 
-TODO: define the response shape for the three retrieval jobs (rule lookup,
-disclosure-by-absence, precedent match) that AI will consume.
+Rule lookup:
+```
+{ rule_id: string, rule_text: string, similarity_score: float }
+```
+
+Disclosure-by-absence:
+```
+{ disclosure_id: string, disclosure_type: string, present: boolean, similarity_score: float, matched_chunk_id: string | null }
+```
+
+Precedent match:
+```
+{ document_id: string, chunk_id: string, similarity_score: float, chunk_text: string }
+```
 
 ## Document-text handoff (Backend -> AI / Data Engineering)
 
