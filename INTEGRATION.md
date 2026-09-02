@@ -38,15 +38,21 @@ once finalized.
 
 ## Embedding model / API
 
-**Status: partially confirmed - owner: AI to confirm match**
+**Status: mismatch confirmed - owner: AI to finalize**
 
-Data Engineering is using `sentence-transformers`, 384 dimensions, matching
-the `document_chunks.embedding vector(384)` column already set up. Pipeline
-tested end-to-end (extraction -> chunking -> embedding -> insert), 12 rows
-verified.
+Data Engineering: `sentence-transformers`, 384 dimensions, matching the
+`document_chunks.embedding vector(384)` column. Pipeline tested end-to-end,
+12 rows verified.
 
-TODO: AI to confirm their embedding calls use the same model/dimensions, or
-flag a mismatch before more integration work happens on top of this.
+AI: currently uses a deterministic local vector engine at 128 dimensions -
+**not compatible** with the 384-dim schema above.
+
+AI has proposed standardizing on Data Engineering's 384-dim model once the
+exact model/API is confirmed.
+
+TODO: Data Engineering to confirm the exact embedding model/API (not just
+"sentence-transformers" - which specific model, e.g. all-MiniLM-L6-v2) so AI
+can align.
 
 ## Retrieval API response shape
 
@@ -67,10 +73,29 @@ Precedent match:
 { document_id: string, chunk_id: string, similarity_score: float, chunk_text: string }
 ```
 
-## Document-text handoff (Backend -> AI / Data Engineering)
+## Dockerfiles (needed for docker compose to build each service)
 
-**Status: open - owner: Backend**
+**Status: in progress**
 
-TODO: confirm how Backend exposes extracted document text to the AI/Data
-Engineering pipeline. AI only needs the extracted clean text for masking and
-analysis - direct access to uploaded files is not required.
+| Repo | Has Dockerfile? | Notes |
+|---|---|---|
+| Backend (compliance-document-review-app) | Not yet | Flagged to Petros |
+| AI (compliance-document-review-ai) | In progress | Nagaa adding one - FastAPI/Uvicorn, port 8001, matches AI_PORT default |
+| Frontend | No repo yet | Blocked on frontend track sharing a repo |
+| Data Engineering | N/A | Not run as its own compose service currently |
+
+## Document-text handoff (Backend -> Data Engineering)
+
+**Status: flow agreed, contract details pending - owner: Backend**
+
+Agreed flow: Frontend -> Backend upload/storage -> Data Engineering retrieves
+the stored file -> Data Engineering runs extraction -> chunking -> embeddings
+-> pgvector.
+
+Backend stores uploaded files and will expose a way for Data Engineering to
+access them (not pre-extracted text - Data Engineering continues to own
+PDF/DOCX/XLSX extraction, so it isn't duplicated in Backend). AI does not need
+direct file access.
+
+TODO: Backend to share the file-storage/access contract (how Data Engineering
+retrieves a given file - endpoint, storage path, etc).
