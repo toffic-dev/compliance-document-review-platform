@@ -11,7 +11,7 @@ via PR as things get confirmed - don't let answers live only in chat.
 | `GEMINI_MODEL` | AI | Configurable, defaults to `gemini-1.5-flash` |
 | `DATABASE_URL` | DevOps | Set automatically by docker-compose from `POSTGRES_*` vars |
 | `BACKEND_PORT` / `FRONTEND_PORT` / `AI_PORT` | DevOps | Default 8000 / 3000 / 8001 |
-| `INTERNAL_SERVICE_TOKEN` | DevOps (proposed) | Shared secret for Data Eng -> Backend internal file-access calls. Not finalized. |
+| `INTERNAL_SERVICE_TOKEN` | Backend | Shared secret for Data Eng -> Backend internal file-access calls. Implemented and tested by Backend. |
 
 ## Masked-text handoff (AI -> Data Engineering)
 
@@ -67,15 +67,39 @@ Precedent match:
 Note: `document_id` in precedent search is currently a placeholder on Data
 Engineering's side, pending Backend's document metadata format.
 
-## Dockerfiles (needed for docker compose to build each service)
+## Production deployment (frontend + backend)
+
+**Status: unblocked, ready to execute**
+
+Per supervisor direction: Frontend deploys on Vercel, not via docker-compose.
+Since Vercel-hosted frontend can't reach a local backend, Backend also needs
+a public home.
+
+Plan:
+- Backend + Postgres/pgvector: Railway (supports pgvector on managed
+  Postgres, deploys from a Dockerfile, keeps app and db on the same private
+  network). Build context: compliance-document-review-app/Backend
+- Frontend: Vercel, with `NEXT_PUBLIC_API_BASE_URL` (or equivalent) pointed
+  at the Railway backend's public URL
+- AI service: staying local/docker-compose only for now, not part of this
+  deployment - production flow does not require live AI analysis yet
+
+Backend's Dockerfile is done (in the Backend/ subfolder) - DevOps setting up
+Railway next.
+
+Still needed once backend is live: Backend must allow CORS requests from the
+Vercel frontend's domain, or the browser will block API calls even if the
+backend itself is reachable.
+
+## Dockerfiles / deployment (needed for each service to run)
 
 **Status: in progress**
 
-| Repo | Has Dockerfile? | Notes |
+| Repo | Deployment method | Notes |
 |---|---|---|
-| Backend (compliance-document-review-app) | Not yet | Flagged to Petros |
-| AI (compliance-document-review-ai) | Done | FastAPI/Uvicorn, port 8001, matches AI_PORT default |
-| Frontend | No repo yet | Blocked on frontend track sharing a repo |
+| Backend (compliance-document-review-app) | Docker (docker-compose) | Done - Dockerfile lives in the Backend/ subfolder, build context set accordingly |
+| AI (compliance-document-review-ai) | Docker (docker-compose) | Done - FastAPI/Uvicorn, port 8001, matches AI_PORT default |
+| Frontend (compliance-document-review-frontend) | Vercel | Per supervisor direction - not run via docker-compose. Repo has a working Dockerfile if that ever changes, but Vercel is the current plan. |
 | Data Engineering | N/A | Not run as its own compose service currently |
 
 ## Precedent retrieval - single source of truth
@@ -99,23 +123,17 @@ instance instead.
 
 ## Document-text handoff (Backend -> Data Engineering)
 
-**Status: endpoints implemented, service-to-service auth pending - owner: Backend + DevOps**
+**Status: resolved**
 
 Confirmed flow: Frontend -> Backend upload/storage -> Data Engineering
 retrieves the original file via Backend endpoint -> extraction -> chunking ->
 embeddings -> pgvector. Backend does not duplicate the extraction pipeline.
 
-Implemented endpoints (Backend):
+Endpoints (Backend):
 - `POST /documents/upload` - uploads file, stores it, creates document metadata
-- `GET /documents/{document_id}/file` - retrieves the original uploaded file by document_id
+- `GET /documents/{document_id}/file` - retrieves the original uploaded file by document_id, protected by INTERNAL_SERVICE_TOKEN
 
-Backend owns file storage and document metadata. Data Engineering continues
-to own PDF/DOCX/XLSX extraction, chunking, embeddings, and vector storage.
-Upload -> db record -> retrieval flow tested successfully by Backend.
-
-TODO: service-to-service auth mechanism for Data Engineering calling the
-Backend file endpoint. Proposed by DevOps: a shared internal token (e.g.
-`INTERNAL_SERVICE_TOKEN` env var, sent as a header) checked by Backend on
-internal endpoints - simplest option for the current scope, doesn't require
-running a full auth flow between services on the same docker network. Open
-for Backend/Data Eng to weigh in before finalizing.
+Auth: `INTERNAL_SERVICE_TOKEN` shared secret, checked by Backend via
+`verify_internal_service_token`. Tested successfully by Backend (200 + file
+returned). Data Engineering: send this as a header when calling the file
+endpoint - see .env.example for the var name.

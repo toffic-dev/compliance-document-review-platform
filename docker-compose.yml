@@ -1,13 +1,13 @@
-version: "3.9"
-
 # Assumes this repo is cloned side-by-side with the other track repos:
 #
 #   compliance-review/
-#   ├── compliance-document-review-app/
-#   ├── compliance-document-review-frontend/
-#   ├── compliance-document-review-ai/
-#   ├── compliance-document-review-data-engineering/
-#   └── compliance-document-review-platform/   <- this repo
+#   - compliance-document-review-app/            <- Backend (Petros/pbekana)
+#   - compliance-document-review-ai/
+#   - compliance-document-review-data-engineering/  <- Data eng (Sushma)
+#   - compliance-document-review-platform/       <- this repo
+#
+# Frontend (compliance-document-review-frontend) is deployed separately via
+# Vercel, not run through docker-compose - see INTEGRATION.md.
 #
 # If your team's repo names differ, update the `context` paths below to match.
 
@@ -32,30 +32,20 @@ services:
 
   backend:
     build:
-      context: ../compliance-document-review-app
+      context: ../compliance-document-review-app/Backend
     container_name: compliance-backend
     restart: unless-stopped
     env_file:
       - .env
     environment:
       DATABASE_URL: postgres://${POSTGRES_USER:-compliance}:${POSTGRES_PASSWORD:-compliance}@db:5432/${POSTGRES_DB:-compliance_review}
+      PORT: ${BACKEND_PORT:-8000}
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN}
     ports:
-      - "8000:8000"
+      - "${BACKEND_PORT:-8000}:${BACKEND_PORT:-8000}"
     depends_on:
       db:
         condition: service_healthy
-
-  frontend:
-    build:
-      context: ../compliance-document-review-frontend
-    container_name: compliance-frontend
-    restart: unless-stopped
-    env_file:
-      - .env
-    ports:
-      - "3000:3000"
-    depends_on:
-      - backend
 
   ai:
     build:
@@ -68,8 +58,9 @@ services:
       DATABASE_URL: postgres://${POSTGRES_USER:-compliance}:${POSTGRES_PASSWORD:-compliance}@db:5432/${POSTGRES_DB:-compliance_review}
       GEMINI_API_KEY: ${GEMINI_API_KEY}
       GEMINI_MODEL: ${GEMINI_MODEL:-gemini-1.5-flash}
+      PORT: ${AI_PORT:-8001}
     ports:
-      - "8001:8001"
+      - "${AI_PORT:-8001}:${AI_PORT:-8001}"
     depends_on:
       db:
         condition: service_healthy
