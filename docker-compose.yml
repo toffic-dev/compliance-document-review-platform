@@ -38,7 +38,7 @@ services:
     env_file:
       - .env
     environment:
-      DATABASE_URL: postgres://${POSTGRES_USER:-compliance}:${POSTGRES_PASSWORD:-compliance}@db:5432/${POSTGRES_DB:-compliance_review}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-compliance}:${POSTGRES_PASSWORD:-compliance}@db:5432/${POSTGRES_DB:-compliance_review}
       PORT: ${BACKEND_PORT:-8000}
       INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN}
     ports:
@@ -55,7 +55,7 @@ services:
     env_file:
       - .env
     environment:
-      DATABASE_URL: postgres://${POSTGRES_USER:-compliance}:${POSTGRES_PASSWORD:-compliance}@db:5432/${POSTGRES_DB:-compliance_review}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-compliance}:${POSTGRES_PASSWORD:-compliance}@db:5432/${POSTGRES_DB:-compliance_review}
       GEMINI_API_KEY: ${GEMINI_API_KEY}
       GEMINI_MODEL: ${GEMINI_MODEL:-gemini-1.5-flash}
       PORT: ${AI_PORT:-8001}
