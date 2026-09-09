@@ -13,6 +13,24 @@ via PR as things get confirmed - don't let answers live only in chat.
 | `BACKEND_PORT` / `FRONTEND_PORT` / `AI_PORT` | DevOps | Default 8000 / 3000 / 8001 |
 | `INTERNAL_SERVICE_TOKEN` | Backend | Shared secret for Data Eng -> Backend internal file-access calls. Implemented and tested by Backend. |
 
+## API path prefix
+
+**Status: decided (final - per supervisor direction)**
+
+Standardized on `/api/v1` prefix, for versioning (allows a future `/api/v2`
+without breaking existing clients):
+- `/api/v1/auth/...`
+- `/api/v1/documents/...`
+
+Backend: needs to update its existing endpoint from
+`/documents/{document_id}/file` to `/api/v1/documents/{document_id}/file`.
+Data Engineering: update calls to match once Backend's change is live.
+Frontend: matches what was already assumed, just add `/v1`.
+
+Note: frontend's own local dev server running on :4000 is unrelated - that's
+just Next.js's dev port, not the backend's. Frontend calls out to backend's
+:8000 (or BACKEND_PORT), it doesn't share a port with it.
+
 ## Masked-text handoff (AI -> Data Engineering)
 
 **Status: confirmed**
@@ -104,22 +122,13 @@ backend itself is reachable.
 
 ## Precedent retrieval - single source of truth
 
-**Status: confirmed mismatch - owner: AI + Data Engineering to resolve**
+**Status: resolved**
 
-Verified by running AI's container directly: on startup it logs
-`Loaded vector store from /app/ai/data/vector_store.json (rules=34,
-disclosures=25, precedents=100)`. This is a local, self-contained JSON file
-bundled with the AI service - not a query against the shared Postgres +
-pgvector instance that Data Engineering populated (12 rows verified there via
-the sentence-transformers pipeline).
-
-This means AI is currently running its own separate retrieval path with its
-own separate data, not consuming Data Engineering's retrieval jobs. Two
-sources of truth exist right now for rules/disclosures/precedents.
-
-TODO: AI and Data Engineering to agree on how AI switches from its local
-vector_store.json to querying Data Engineering's retrieval API/pgvector
-instance instead.
+Confirmed by Sushma (Data Eng) and Naga (AI): AI's local `vector_store.json`
+is test-only. For the integrated system, AI consumes Data Engineering's
+retrieval API as the single production source of truth for rules,
+disclosures, and precedents. No further action needed from either side on
+this specific question.
 
 ## Document-text handoff (Backend -> Data Engineering)
 
@@ -130,8 +139,8 @@ retrieves the original file via Backend endpoint -> extraction -> chunking ->
 embeddings -> pgvector. Backend does not duplicate the extraction pipeline.
 
 Endpoints (Backend):
-- `POST /documents/upload` - uploads file, stores it, creates document metadata
-- `GET /documents/{document_id}/file` - retrieves the original uploaded file by document_id, protected by INTERNAL_SERVICE_TOKEN
+- `POST /api/v1/documents/upload` - uploads file, stores it, creates document metadata
+- `GET /api/v1/documents/{document_id}/file` - retrieves the original uploaded file by document_id, protected by INTERNAL_SERVICE_TOKEN (path update pending on Backend - see API path prefix section above)
 
 Auth: `INTERNAL_SERVICE_TOKEN` shared secret, checked by Backend via
 `verify_internal_service_token`. Tested successfully by Backend (200 + file
