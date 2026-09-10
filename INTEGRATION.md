@@ -13,6 +13,31 @@ via PR as things get confirmed - don't let answers live only in chat.
 | `BACKEND_PORT` / `FRONTEND_PORT` / `AI_PORT` | DevOps | Default 8000 / 3000 / 8001 |
 | `INTERNAL_SERVICE_TOKEN` | Backend | Shared secret for Data Eng -> Backend internal file-access calls. Implemented and tested by Backend. |
 
+## Data Engineering DB connection - hardcoded localhost
+
+**Status: resolved**
+
+Fixed by Data Engineering - now reads from DATABASE_URL env var instead of
+hardcoding localhost, matching the rest of the stack. Also added
+seed_document_chunks.py for generic sample data.
+
+## AI analysis endpoint + service networking
+
+**Status: confirmed**
+
+AI analysis endpoint: `POST /ai/analyze/{document_id}` - no Authorization/
+Bearer header required.
+
+Docker-compose networking: Backend -> AI should use `http://ai:8001`
+(service name resolution within the compose network), not localhost.
+
+AI -> Data Engineering connection controlled by env vars:
+`DATA_ENGINEERING_BASE_URL` and `USE_DATA_ENGINEERING_SERVICE=true`.
+
+Note: AI service is local/docker-compose only for this submission, not part
+of the Railway deployment (see Production deployment section) - live AI
+analysis is out of scope for the current deployment target.
+
 ## API path prefix
 
 **Status: decided (final - per supervisor direction)**
