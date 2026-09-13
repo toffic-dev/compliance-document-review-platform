@@ -13,6 +13,22 @@ via PR as things get confirmed - don't let answers live only in chat.
 | `BACKEND_PORT` / `FRONTEND_PORT` / `AI_PORT` | DevOps | Default 8000 / 3000 / 8001 |
 | `INTERNAL_SERVICE_TOKEN` | Backend | Shared secret for Data Eng -> Backend internal file-access calls. Implemented and tested by Backend. |
 
+## User role string values
+
+**Status: confirmed via live login response**
+
+The backend's actual role values (as returned by POST /api/v1/auth/login and
+used throughout the JWT/session) are:
+
+- Advisor: `ADVISOR`
+- Officer: `COMPLIANCE_OFFICER` (not `OFFICER` - this caused a real bug where
+  the frontend compared against `"OFFICER"` and never matched, silently
+  bouncing officers back to the login page. Fixed on the frontend to compare
+  against `COMPLIANCE_OFFICER` instead.)
+
+Anyone comparing `user.role` directly (frontend, or any other service) should
+use these exact values, not assumed/shortened versions.
+
 ## Data Engineering DB connection - hardcoded localhost
 
 **Status: resolved**
@@ -47,10 +63,9 @@ without breaking existing clients):
 - `/api/v1/auth/...`
 - `/api/v1/documents/...`
 
-Backend: needs to update its existing endpoint from
-`/documents/{document_id}/file` to `/api/v1/documents/{document_id}/file`.
-Data Engineering: update calls to match once Backend's change is live.
-Frontend: matches what was already assumed, just add `/v1`.
+Backend: updated its endpoint to `/api/v1/documents/{document_id}/file`.
+Data Engineering: update calls to match. Frontend: matches what was already
+assumed, just add `/v1`.
 
 Note: frontend's own local dev server running on :4000 is unrelated - that's
 just Next.js's dev port, not the backend's. Frontend calls out to backend's
@@ -112,37 +127,27 @@ Engineering's side, pending Backend's document metadata format.
 
 ## Production deployment (frontend + backend)
 
-**Status: unblocked, ready to execute**
+**Status: live**
 
-Per supervisor direction: Frontend deploys on Vercel, not via docker-compose.
-Since Vercel-hosted frontend can't reach a local backend, Backend also needs
-a public home.
+Per supervisor direction: Frontend deployed on Vercel, not via docker-compose.
+Backend deployed on Railway (Postgres/pgvector + backend service, same
+private network, built from Backend/ subfolder's Dockerfile).
 
-Plan:
-- Backend + Postgres/pgvector: Railway (supports pgvector on managed
-  Postgres, deploys from a Dockerfile, keeps app and db on the same private
-  network). Build context: compliance-document-review-app/Backend
-- Frontend: Vercel, with `NEXT_PUBLIC_API_BASE_URL` (or equivalent) pointed
-  at the Railway backend's public URL
-- AI service: staying local/docker-compose only for now, not part of this
-  deployment - production flow does not require live AI analysis yet
+Frontend's `NEXT_PUBLIC_API_URL` points at the Railway backend's public URL.
+CORS configured on backend to allow the Vercel domain.
 
-Backend's Dockerfile is done (in the Backend/ subfolder) - DevOps setting up
-Railway next.
-
-Still needed once backend is live: Backend must allow CORS requests from the
-Vercel frontend's domain, or the browser will block API calls even if the
-backend itself is reachable.
+AI service: staying local/docker-compose only for now, not part of this
+deployment - production flow does not require live AI analysis yet.
 
 ## Dockerfiles / deployment (needed for each service to run)
 
-**Status: in progress**
+**Status: done**
 
 | Repo | Deployment method | Notes |
 |---|---|---|
-| Backend (compliance-document-review-app) | Docker (docker-compose) | Done - Dockerfile lives in the Backend/ subfolder, build context set accordingly |
-| AI (compliance-document-review-ai) | Docker (docker-compose) | Done - FastAPI/Uvicorn, port 8001, matches AI_PORT default |
-| Frontend (compliance-document-review-frontend) | Vercel | Per supervisor direction - not run via docker-compose. Repo has a working Dockerfile if that ever changes, but Vercel is the current plan. |
+| Backend (compliance-document-review-app) | Railway (Docker) | Dockerfile lives in the Backend/ subfolder |
+| AI (compliance-document-review-ai) | Docker (docker-compose) | FastAPI/Uvicorn, port 8001, matches AI_PORT default |
+| Frontend (compliance-document-review-frontend) | Vercel | Per supervisor direction - not run via docker-compose |
 | Data Engineering | N/A | Not run as its own compose service currently |
 
 ## Precedent retrieval - single source of truth
@@ -152,8 +157,7 @@ backend itself is reachable.
 Confirmed by Sushma (Data Eng) and Naga (AI): AI's local `vector_store.json`
 is test-only. For the integrated system, AI consumes Data Engineering's
 retrieval API as the single production source of truth for rules,
-disclosures, and precedents. No further action needed from either side on
-this specific question.
+disclosures, and precedents.
 
 ## Document-text handoff (Backend -> Data Engineering)
 
@@ -165,9 +169,8 @@ embeddings -> pgvector. Backend does not duplicate the extraction pipeline.
 
 Endpoints (Backend):
 - `POST /api/v1/documents/upload` - uploads file, stores it, creates document metadata
-- `GET /api/v1/documents/{document_id}/file` - retrieves the original uploaded file by document_id, protected by INTERNAL_SERVICE_TOKEN (path update pending on Backend - see API path prefix section above)
+- `GET /api/v1/documents/{document_id}/file` - retrieves the original uploaded file by document_id, protected by INTERNAL_SERVICE_TOKEN
 
 Auth: `INTERNAL_SERVICE_TOKEN` shared secret, checked by Backend via
-`verify_internal_service_token`. Tested successfully by Backend (200 + file
-returned). Data Engineering: send this as a header when calling the file
-endpoint - see .env.example for the var name.
+`verify_internal_service_token`. Data Engineering sends this as a header
+when calling the file endpoint.
