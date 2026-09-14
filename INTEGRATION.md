@@ -13,6 +13,17 @@ via PR as things get confirmed - don't let answers live only in chat.
 | `BACKEND_PORT` / `FRONTEND_PORT` / `AI_PORT` | DevOps | Default 8000 / 3000 / 8001 |
 | `INTERNAL_SERVICE_TOKEN` | Backend | Shared secret for Data Eng -> Backend internal file-access calls. Implemented and tested by Backend. |
 
+## GET /api/v1/documents/{id} response fields
+
+**Status: confirmed**
+
+Confirmed field names (Backend, via Petros):
+- Advisor display name: `advisorName` (camelCase, sourced from User.full_name).
+  NOT `advisor_name`, `advisor.full_name`, `advisor.name`, or `submitted_by`.
+- File retrieval: no direct `file_url` field - fetch via `GET /api/v1/documents/{id}/file`
+  (Bearer token required, so frontend must fetch as an authenticated blob, not
+  use the URL directly as an iframe/img src).
+
 ## User role string values
 
 **Status: confirmed via live login response**
