@@ -20,9 +20,28 @@ via PR as things get confirmed - don't let answers live only in chat.
 Confirmed field names (Backend, via Petros):
 - Advisor display name: `advisorName` (camelCase, sourced from User.full_name).
   NOT `advisor_name`, `advisor.full_name`, `advisor.name`, or `submitted_by`.
-- File retrieval: no direct `file_url` field - fetch via `GET /api/v1/documents/{id}/file`
-  (Bearer token required, so frontend must fetch as an authenticated blob, not
-  use the URL directly as an iframe/img src).
+- File retrieval: no direct `file_url` field. Do NOT use `GET /api/v1/documents/{id}/file`
+  for frontend view/download - that's internal-only (INTERNAL_SERVICE_TOKEN, not user JWT).
+  See the dedicated section below for the correct user-facing endpoint (pending from Backend).
+
+## GET /api/v1/documents/{id}/file - internal only, NOT for frontend
+
+**Status: clarified**
+
+This endpoint is intentionally internal service-to-service only, for Data
+Engineering's file retrieval. Auth: `INTERNAL_SERVICE_TOKEN` only - does NOT
+accept a regular user's JWT (confirmed: returns 401 for user tokens).
+
+Frontend must NOT call this endpoint directly for view/download. Backend
+(Petros) will provide a separate user-facing endpoint for advisor/officer
+document view/download, authenticated with the normal user JWT and enforcing
+document-level authorization (users can only access documents they're
+permitted to view).
+
+TODO: Backend to share the exact path/contract for the new user-facing
+endpoint. Frontend's DocumentViewer/download code currently calls the
+internal /file endpoint incorrectly and needs to be updated once the new
+endpoint exists.
 
 ## User role string values
 
